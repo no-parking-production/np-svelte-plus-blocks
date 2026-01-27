@@ -16,11 +16,11 @@ npm install @nopa/svelte-plus-blocks
 
 ```svelte
 <script>
-  import { Button, PropertyButton } from '@nopa/svelte-plus-blocks';
+  import { BlocksButton } from '@nopa/svelte-plus-blocks';
+  import {BAction} from "$lib/common/button/BAction.ts";
 </script>
 
-<Button />
-<PropertyButton />
+<BlocksButton label="Click me!" primaryAction={BAction.SetProperty('test', true)} />
 ```
 
 ## Components
