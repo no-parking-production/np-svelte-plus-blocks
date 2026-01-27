@@ -1,27 +1,29 @@
 import { writable, type Writable } from 'svelte/store';
-import type { IAppToBlocksInterface } from './interfaces/IAppToBlocksInterface.ts';
 import type {IBlocksToAppInterface} from "$lib/common/interfaces/IBlocksToAppInterface.js";
 import type {IBlocksParameter} from "$lib/common/interfaces/IBlocksParameter.js";
 import type {IBlocksParameterLite} from "$lib/common/interfaces/IBlocksParameterLite.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
+import type {IBlocksWindow} from "$lib/common/interfaces/BlocksApi.js";
+import {BlocksPubSubManager} from "$lib/common/blocks_interface/BlocksPubSubManager.js";
+import {BlocksPropertyManager} from "$lib/common/blocks_interface/BlocksPropertyManager.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 
 export class BlocksInterface implements IBlocksToAppInterface {
-    private appToBlocks: IAppToBlocksInterface;
     private paramStores: Map<string, Writable<BlocksParamType>> = new Map();
     private paramValues: Map<string, BlocksParamType> = new Map();
 
+    private static blocksWindow: IBlocksWindow | null = null;
     private static instance: BlocksInterface | null = null;
 
+    private pubSubManager: BlocksPubSubManager;
+    private propManager: BlocksPropertyManager;
+
     public static getInstance(): BlocksInterface | null {
+        if (typeof window === 'undefined') return null;
         if (BlocksInterface.instance) return BlocksInterface.instance;
         try {
-            // @ts-ignore
-            const connector = window?.top?.['instance_apiConnector'] as IAppToBlocksInterface;
-            if (!connector) return null;
-            BlocksInterface.instance = new BlocksInterface(connector);
-            connector.connect(BlocksInterface.instance);
+            BlocksInterface.instance = new BlocksInterface();
             return BlocksInterface.instance;
         } catch (e) {
             console.error('Cannot access parent window connector', e);
@@ -29,8 +31,12 @@ export class BlocksInterface implements IBlocksToAppInterface {
         return null;
     }
 
-    constructor(appToBlocks: IAppToBlocksInterface) {
-        this.appToBlocks = appToBlocks;
+    constructor() {
+        this.updateParam = this.updateParam.bind(this);
+        this.registerParam = this.registerParam.bind(this);
+        BlocksInterface.blocksWindow = window?.top as unknown as IBlocksWindow;
+        this.pubSubManager = new BlocksPubSubManager(BlocksInterface.blocksWindow, this.updateParam, this.registerParam);
+        this.propManager = new BlocksPropertyManager(BlocksInterface.blocksWindow, this.updateParam, this.registerParam);
     }
 
     /**
@@ -48,7 +54,7 @@ export class BlocksInterface implements IBlocksToAppInterface {
         const isLocal = BlocksInterface.isLocalParam(path);
 
         // Subscribe to server param if not already subscribed
-        if (!isLocal) this.appToBlocks.subscribeServerParam(path);
+        if (!isLocal) this.subscribeServerParam(path);
 
         // Create a new store with an initial value
         const initialValue = this.paramValues.get(path);
@@ -63,9 +69,9 @@ export class BlocksInterface implements IBlocksToAppInterface {
                 this.paramValues.set(path, value);
                 if (isLocal) {
                     const localPath = path.substring(PREFIX_LOCAL_PARAM.length);
-                    this.appToBlocks.setLocalParam(localPath, value);
+                    this.setLocalParam(localPath, value);
                 }
-                else this.appToBlocks.setServerParam(path, String(value));
+                else this.setServerParam(path, String(value));
             }
         });
 
@@ -101,6 +107,22 @@ export class BlocksInterface implements IBlocksToAppInterface {
         this.paramStores.clear();
         this.paramValues.clear();
     }
+    public setLocalParam(name: string, value: string | number | boolean): void {
+        BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
+    }
+    public subscribeServerParam(path: string): void {
+        this.pubSubManager?.subscribe(path);
+    }
+    public setServerParam(path: string, value: string): void {
+        this.pubSubManager?.setValue(path, value);
+    }
+
+
+    // svelte -> blocks
+
+
+
+    // blocks -> svelte
 
     addTags(tags: string): void {
     }
@@ -128,6 +150,8 @@ export class BlocksInterface implements IBlocksToAppInterface {
     updateTags(tags: string): void {
     }
 
+
+    // misc tooling
     private static fixPath(path: string): string {
         if (path.indexOf('.') !== -1) return path;
         return path.startsWith(PREFIX_LOCAL_PARAM) ? path : PREFIX_LOCAL_PARAM + path;
