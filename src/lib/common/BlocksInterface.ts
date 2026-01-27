@@ -1,15 +1,17 @@
 import { writable, type Writable } from 'svelte/store';
-import type {IBlocksToAppInterface} from "$lib/common/interfaces/IBlocksToAppInterface.js";
 import type {IBlocksParameter} from "$lib/common/interfaces/IBlocksParameter.js";
 import type {IBlocksParameterLite} from "$lib/common/interfaces/IBlocksParameterLite.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 import type {IBlocksWindow} from "$lib/common/interfaces/BlocksApi.js";
 import {BlocksPubSubManager} from "$lib/common/blocks_interface/BlocksPubSubManager.js";
 import {BlocksPropertyManager} from "$lib/common/blocks_interface/BlocksPropertyManager.js";
+import {BlocksTagManager} from "$lib/common/blocks_interface/BlocksTagManager.js";
+import {ScannerGroup} from "$lib/common/blocks_interface/ScannerGroup.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
+const POSTFIX_VALUE = '.value';
 
-export class BlocksInterface implements IBlocksToAppInterface {
+export class BlocksInterface {
     private paramStores: Map<string, Writable<BlocksParamType>> = new Map();
     private paramValues: Map<string, BlocksParamType> = new Map();
 
@@ -17,7 +19,9 @@ export class BlocksInterface implements IBlocksToAppInterface {
     private static instance: BlocksInterface | null = null;
 
     private pubSubManager: BlocksPubSubManager;
-    private propManager: BlocksPropertyManager;
+    private readonly propManager: BlocksPropertyManager;
+    private readonly blocksTagManager: BlocksTagManager;
+    private scannerGroup: ScannerGroup;
 
     public static getInstance(): BlocksInterface | null {
         if (typeof window === 'undefined') return null;
@@ -31,12 +35,20 @@ export class BlocksInterface implements IBlocksToAppInterface {
         return null;
     }
 
-    constructor() {
-        this.updateParam = this.updateParam.bind(this);
-        this.registerParam = this.registerParam.bind(this);
+    private constructor() {
+        this.onUpdateParam = this.onUpdateParam.bind(this);
+        this.onRegisterParam = this.onRegisterParam.bind(this);
         BlocksInterface.blocksWindow = window?.top as unknown as IBlocksWindow;
-        this.pubSubManager = new BlocksPubSubManager(BlocksInterface.blocksWindow, this.updateParam, this.registerParam);
-        this.propManager = new BlocksPropertyManager(BlocksInterface.blocksWindow, this.updateParam, this.registerParam);
+        this.pubSubManager = new BlocksPubSubManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
+        this.propManager = new BlocksPropertyManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
+        this.blocksTagManager = new BlocksTagManager(
+            BlocksInterface.blocksWindow,
+            this.onUpdateTags,
+            this.onAddTags,
+            this.onRemoveTags
+        );
+        this.scannerGroup = new ScannerGroup(BlocksInterface.blocksWindow, [this.blocksTagManager, this.propManager]);
+        this.scannerGroup.startScanning();
     }
 
     /**
@@ -44,9 +56,9 @@ export class BlocksInterface implements IBlocksToAppInterface {
      * @param path - The parameter path
      * @returns A Svelte writable store
      */
-    getParamStore(path: string): Writable<BlocksParamType> {
+    public getParamStore(path: string): Writable<BlocksParamType> {
         path = BlocksInterface.fixPath(path);
-        // console.log('getParamStore', path);
+
         if (this.paramStores.has(path)) {
             return this.paramStores.get(path) as Writable<BlocksParamType>;
         }
@@ -83,19 +95,17 @@ export class BlocksInterface implements IBlocksToAppInterface {
      * Called when a parameter value changes from the server
      * Updates the corresponding store
      */
-    onParamUpdate(path: string, value: string | number | boolean): void {
+    private onParamUpdate(path: string, value: string | number | boolean): void {
         this.paramValues.set(path, value);
 
         const store = this.paramStores.get(path);
-        if (store) {
-            store.set(value);
-        }
+        store?.set(value);
     }
 
     /**
      * Remove a parameter store subscription
      */
-    unsubscribeParam(path: string): void {
+    private unsubscribeParam(path: string): void {
         this.paramStores.delete(path);
         this.paramValues.delete(path);
     }
@@ -103,58 +113,119 @@ export class BlocksInterface implements IBlocksToAppInterface {
     /**
      * Clear all parameter stores
      */
-    clearAll(): void {
+    private clearAll(): void {
         this.paramStores.clear();
         this.paramValues.clear();
     }
-    public setLocalParam(name: string, value: string | number | boolean): void {
+
+    private setLocalParam(name: string, value: string | number | boolean): void {
         BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
     }
-    public subscribeServerParam(path: string): void {
+    private subscribeServerParam(path: string): void {
         this.pubSubManager?.subscribe(path);
     }
-    public setServerParam(path: string, value: string): void {
+    private setServerParam(path: string, value: string): void {
         this.pubSubManager?.setValue(path, value);
     }
 
 
     // svelte -> blocks
+    // https://pixilab.se/docs/blocks/api/javascript#additional_web_block_interaction_capabilities
+    /**
+     * https://pixilab.se/docs/blocks/api/javascript#action
+     * "Keeps any enclosing Attractor Block in its active state."
+     */
+    public action(): void {
+        BlocksInterface.postBlocksMessage('action');
+    }
 
+    /**
+     * "Navigate to a specified block path inside the current root block."
+     * @param path
+     */
+    public gotoBlock(path: string): void {
+        BlocksInterface.postBlocksMessage('goto-block', path);
+    }
+
+    /**
+     * "Navigate back, just like the browser's BACK button."
+     */
+    public goBack(): void {
+        BlocksInterface.postBlocksMessage('go-back');
+    }
+
+    /**
+     * "Tells any enclosing Locator block to locate the Spot path or Location ID specified."
+     * @param location will be interpreted as a Location ID if numeric, otherwise as Spot path
+     */
+    public setLocation(location: string): void {
+        BlocksInterface.postBlocksMessage('set-location', location);
+    }
+    public setTags(tags: string): void {
+        this.blocksTagManager.setTags(tags);
+    }
+    public setTagsOfSet(tagList: string, tagSet: string): void {
+        this.blocksTagManager.setTagsOfSet(tagList, tagSet);
+    }
+    public toggleTags(tags: string): void {
+        this.blocksTagManager.toggleTags(tags);
+    }
+    public addTags(tags: string): void {
+        this.blocksTagManager.addTags(tags);
+    }
+    public removeTags(tags: string): void {
+        this.blocksTagManager.removeTags(tags);
+    }
 
 
     // blocks -> svelte
 
-    addTags(tags: string): void {
+    private onAddTags(tags: string): void {
+        console.log('addTags', tags);
     }
 
-    onShowLoaded(show: string): void {
+    private onShowLoaded(show: string): void {
     }
 
-    registerParam(parameter: IBlocksParameter): void {
+    private onRegisterParam(parameter: IBlocksParameter): void {
         this.onParamUpdate(parameter.name, parameter.value);
     }
 
-    removeTags(tags: string): void {
+    private onRemoveTags(tags: string): void {
+        console.log('removeTags', tags);
     }
 
-    updateParam(parameter: IBlocksParameterLite): void {
+    private onUpdateParam(parameter: IBlocksParameterLite): void {
         this.onParamUpdate(parameter.name, parameter.value)
     }
 
-    updatePath(path: string): void {
+    private updatePath(path: string): void {
     }
 
-    updateShow(show: string): void {
+    private updateShow(show: string): void {
     }
 
-    updateTags(tags: string): void {
+    private onUpdateTags(tags: string): void {
+        console.log('updateTags', tags);
     }
 
 
     // misc tooling
+    private static postBlocksMessage(type: string, data: string | null = null): void {
+        if (data) BlocksInterface.postMessage({type: type, data: data});
+        else BlocksInterface.postMessage({type: type});
+    }
+    private static postMessage(message: any): void {
+        BlocksInterface.blocksWindow?.postMessage(message, '*');
+    }
     private static fixPath(path: string): string {
-        if (path.indexOf('.') !== -1) return path;
-        return path.startsWith(PREFIX_LOCAL_PARAM) ? path : PREFIX_LOCAL_PARAM + path;
+        if (path.indexOf('.') === -1) {
+            return PREFIX_LOCAL_PARAM + path;
+        }
+        if (path.startsWith(PREFIX_LOCAL_PARAM)) return path;
+        if (!path.endsWith(POSTFIX_VALUE)) return path + POSTFIX_VALUE;
+        return path;
+
     }
     private static isLocalParam(path: string): boolean {
         return path.startsWith(PREFIX_LOCAL_PARAM);

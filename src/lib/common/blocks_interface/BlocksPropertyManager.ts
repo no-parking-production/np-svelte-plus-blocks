@@ -7,13 +7,14 @@ import {GenericPropertyManager} from "$lib/common/blocks_interface/GenericProper
 import {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
 import {AsyncSignal} from "$lib/common/events/AsyncSignal.js";
+import {AbstractIntervalScanner} from "$lib/common/blocks_interface/AbstractIntervalScanner.js";
 
 
 const BASE_PATH_LOCAL_PARAMETER = 'Local.parameter.';
 
 export type parameterHandler = (parameter: IBlocksParameter) => void;
 export type parameterHandlerLite = (parameter: IBlocksParameterLite) => void;
-export class BlocksPropertyManager implements IParamSubscriber {
+export class BlocksPropertyManager extends AbstractIntervalScanner implements IParamSubscriber {
     public readonly onParamChange: AsyncSignal<BlocksPropertyManager, IBlocksParameterLite> = new AsyncSignal<BlocksPropertyManager, IBlocksParameterLite>();
     public readonly onParamDiscovery: AsyncSignal<BlocksPropertyManager, IBlocksParameter> = new AsyncSignal<BlocksPropertyManager, IBlocksParameter>();
 
@@ -26,6 +27,7 @@ export class BlocksPropertyManager implements IParamSubscriber {
         onParamChange: parameterHandlerLite,
         onParamDiscovery: parameterHandler,
     ) {
+        super(blocksWindow);
         this.topWindow = blocksWindow;
         this.pixiApi = this.topWindow.pixiAPI;
         this.propProvider = this.pixiApi?.propProvider;
