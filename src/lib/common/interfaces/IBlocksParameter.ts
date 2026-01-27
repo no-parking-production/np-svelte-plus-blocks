@@ -1,5 +1,5 @@
 import type {IBlocksParameterLite} from "./IBlocksParameterLite.ts";
-import {BlocksValueType} from "./BlocksApi.ts";
+import type {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 
 export interface IBlocksParameter extends IBlocksParameterLite {
     type: BlocksValueType;

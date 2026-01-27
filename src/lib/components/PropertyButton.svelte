@@ -1,9 +1,12 @@
 <script lang="ts">
+    import type {PropertyButtonProps} from "$lib/types.js";
     import {BlocksInterface} from "$lib/common/BlocksInterface.js";
 
-    export let propertyPath: string;
-    export let value: any;
-    export let label: string;
+    let {
+        propertyPath,
+        value,
+        label
+    }: PropertyButtonProps = $props();
 
     const param =  BlocksInterface.getInstance()?.getParamStore(propertyPath);
 
@@ -12,7 +15,10 @@
         param?.set(value);
     }
 
-    $: isActive = $param == value;
+    let isActive = $state(false);
+    $effect(() => {
+        isActive = $param == value;
+    });
 
 </script>
 

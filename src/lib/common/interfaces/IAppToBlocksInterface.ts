@@ -1,5 +1,5 @@
 import type {IBlocksToAppInterface} from "$lib/common/interfaces/IBlocksToAppInterface.js";
-import type {BlocksParamType} from "$lib/common/interfaces/BlocksApi.js";
+import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 
 export interface IAppToBlocksInterface {
     connect(btaInterface: IBlocksToAppInterface): void;

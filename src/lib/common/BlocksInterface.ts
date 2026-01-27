@@ -18,7 +18,7 @@ export class BlocksInterface implements IBlocksToAppInterface {
         if (BlocksInterface.instance) return BlocksInterface.instance;
         try {
             // @ts-ignore
-            const connector = window.top?.['instance_apiConnector'] as IAppToBlocksInterface;
+            const connector = window?.top?.['instance_apiConnector'] as IAppToBlocksInterface;
             if (!connector) return null;
             BlocksInterface.instance = new BlocksInterface(connector);
             connector.connect(BlocksInterface.instance);
