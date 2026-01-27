@@ -4,7 +4,7 @@
 	"description": "Experimental Interface between Svelte and Blocks",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/no-parking-production/np-svelte-plus-blocks.git"
+		"url": "git+https://github.com/no-parking-production/np-svelte-plus-blocks.git"
 	},
 	"license": "MIT",
 	"scripts": {
