@@ -1,6 +1,12 @@
 {
-	"name": "np-svelte-blocks",
+	"name": "@nopa/svelte-plus-blocks",
 	"version": "0.0.1",
+	"description": "Experimental Interface between Svelte and Blocks",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/no-parking-production/np-svelte-plus-blocks.git"
+	},
+	"license": "MIT",
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build && npm run prepack",
