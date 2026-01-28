@@ -1,6 +1,7 @@
 import type {IBlocksParameter} from "$lib/common/interfaces/IBlocksParameter.js";
 import type {IBlocksParameterLite} from "$lib/common/interfaces/IBlocksParameterLite.js";
 import {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
+import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 
 
 export type parameterHandler = (parameter: IBlocksParameter) => void;
@@ -26,9 +27,8 @@ export class GenericPropertyManager {
         if (property === undefined) return BlocksValueType.String;
         return property.type;
     }
-    public dataReceived(value: string | boolean | number, path: string): void {
+    public dataReceived(value: BlocksParamType, path: string): void {
         const property = this.props[path];
-        const valueString = value.toString();
         if (property === undefined) {
             let type = BlocksValueType.String;
             switch (typeof value) {
@@ -39,17 +39,17 @@ export class GenericPropertyManager {
                     type = BlocksValueType.Number;
                     break;
             }
-            this.discovery(path, valueString, '', type);
+            this.discovery(path, value, '', type);
             console.log(`discovery: ${path} ${value}`);
         } else {
             const currentValue = property.value;
-            if (currentValue !== valueString) {
-                property.value = valueString;
-                this.onParamChange({name: path, value: valueString});
+            if (currentValue !== value) {
+                property.value = value;
+                this.onParamChange({name: path, value: value});
             }
         }
     }
-    public discovery(path: string, value: string, comment: string, type: BlocksValueType): void {
+    public discovery(path: string, value: BlocksParamType, comment: string, type: BlocksValueType): void {
         const property = this.props[path];
         if (property === undefined) {
             const parameter: IBlocksParameter = {

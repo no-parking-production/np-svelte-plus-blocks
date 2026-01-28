@@ -12,6 +12,7 @@ import {
     type IBlocksMessageIn, type IBlocksMessageOut, type IPubSubData,
     PubSubData, PubSubSubscribeMessage, SetMessage
 } from "$lib/common/interfaces/blocks/BlocksSocket.js";
+import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 
 
 export class BlocksPubSubManager {
@@ -42,7 +43,7 @@ export class BlocksPubSubManager {
     public subscribe(path: string): void {
         this.sendSubscribe(path);
     }
-    public setValue(path: string, value: string) {
+    public setValue(path: string, value: BlocksParamType) {
         const type = this.genericPropertyManager.getParameterType(path);
         switch (type) {
             case BlocksValueType.Boolean:

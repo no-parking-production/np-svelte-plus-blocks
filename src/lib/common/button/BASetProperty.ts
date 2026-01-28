@@ -15,9 +15,10 @@ export class BASetProperty extends ButtonAction {
     ) {
         super();
         this.propertyPath = propertyPath;
-        this.value = String(value);
+        this.value = value;
         this.property = BlocksInterface.getInstance()?.getParamStore(propertyPath);
         this.property?.subscribe((value) => {
+            console.log('BASetProperty', value);
             this.setActive(value === this.value);
         });
     }

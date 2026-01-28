@@ -1,4 +1,5 @@
 import type {ITypedParameter} from "$lib/common/interfaces/blocks/ITypedParameter.js";
+import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 
 export enum BlocksSocketMessageName {
     Change = 'change',
@@ -37,7 +38,7 @@ export interface IPubSubPathData extends IMessageData {
     path: string,
 }
 export interface IPubSubData extends IPubSubPathData {
-    data: string | number | boolean;
+    data: BlocksParamType;
 }
 export interface ISetParamData extends IMessageData {
     force: boolean,

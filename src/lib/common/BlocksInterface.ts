@@ -7,6 +7,7 @@ import {BlocksPubSubManager} from "$lib/common/blocks_interface/BlocksPubSubMana
 import {BlocksPropertyManager} from "$lib/common/blocks_interface/BlocksPropertyManager.js";
 import {BlocksTagManager} from "$lib/common/blocks_interface/BlocksTagManager.js";
 import {ScannerGroup} from "$lib/common/blocks_interface/ScannerGroup.js";
+import type {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
@@ -14,6 +15,7 @@ const POSTFIX_VALUE = '.value';
 export class BlocksInterface {
     private paramStores: Map<string, Writable<BlocksParamType>> = new Map();
     private paramValues: Map<string, BlocksParamType> = new Map();
+    private paramTypes: Map<string, BlocksValueType> = new Map();
 
     private static blocksWindow: IBlocksWindow | null = null;
     private static instance: BlocksInterface | null = null;
@@ -83,7 +85,7 @@ export class BlocksInterface {
                     const localPath = path.substring(PREFIX_LOCAL_PARAM.length);
                     this.setLocalParam(localPath, value);
                 }
-                else this.setServerParam(path, String(value));
+                else this.setServerParam(path, value);
             }
         });
 
@@ -95,11 +97,12 @@ export class BlocksInterface {
      * Called when a parameter value changes from the server
      * Updates the corresponding store
      */
-    private onParamUpdate(path: string, value: string | number | boolean): void {
-        this.paramValues.set(path, value);
+    private onParamUpdate(paramLite: IBlocksParameterLite, type: BlocksValueType | null = null): void {
+        this.paramValues.set(paramLite.name, paramLite.value);
+        if (type) this.paramTypes.set(paramLite.name, type);
 
-        const store = this.paramStores.get(path);
-        store?.set(value);
+        const store = this.paramStores.get(paramLite.name);
+        store?.set(paramLite.value);
     }
 
     /**
@@ -108,6 +111,7 @@ export class BlocksInterface {
     private unsubscribeParam(path: string): void {
         this.paramStores.delete(path);
         this.paramValues.delete(path);
+        this.paramTypes.delete(path);
     }
 
     /**
@@ -116,15 +120,16 @@ export class BlocksInterface {
     private clearAll(): void {
         this.paramStores.clear();
         this.paramValues.clear();
+        this.paramTypes.clear();
     }
 
-    private setLocalParam(name: string, value: string | number | boolean): void {
+    private setLocalParam(name: string, value: BlocksParamType): void {
         BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
     }
     private subscribeServerParam(path: string): void {
         this.pubSubManager?.subscribe(path);
     }
-    private setServerParam(path: string, value: string): void {
+    private setServerParam(path: string, value: BlocksParamType): void {
         this.pubSubManager?.setValue(path, value);
     }
 
@@ -188,7 +193,7 @@ export class BlocksInterface {
     }
 
     private onRegisterParam(parameter: IBlocksParameter): void {
-        this.onParamUpdate(parameter.name, parameter.value);
+        this.onParamUpdate(parameter, parameter.type);
     }
 
     private onRemoveTags(tags: string): void {
@@ -196,7 +201,7 @@ export class BlocksInterface {
     }
 
     private onUpdateParam(parameter: IBlocksParameterLite): void {
-        this.onParamUpdate(parameter.name, parameter.value)
+        this.onParamUpdate(parameter);
     }
 
     private updatePath(path: string): void {
