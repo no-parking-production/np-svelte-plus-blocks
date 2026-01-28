@@ -163,7 +163,6 @@ export class BlocksInterface {
         if (this.isSameOrigin) {
             BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
         } else {
-            console.log('setLocalParam', name, value);
             this.pubSubManager?.setValue(PREFIX_LOCAL_PARAM + name, value);
         }
     }
@@ -265,12 +264,13 @@ export class BlocksInterface {
     private static postMessage(message: any): void {
         BlocksInterface.blocksWindow?.postMessage(message, '*');
     }
+    private static regexRealmVariableWithoutPostfix = /^Realm\.[^.]+\.variable\.[^.]+$/;
     private static fixPath(path: string): string {
         if (path.indexOf('.') === -1) {
             return PREFIX_LOCAL_PARAM + path;
         }
         if (path.startsWith(PREFIX_LOCAL_PARAM)) return path;
-        if (!path.endsWith(POSTFIX_VALUE)) return path + POSTFIX_VALUE;
+        if (BlocksInterface.regexRealmVariableWithoutPostfix.test(path)) return path + POSTFIX_VALUE;
         return path;
 
     }

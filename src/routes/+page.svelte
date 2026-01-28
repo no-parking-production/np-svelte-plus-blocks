@@ -8,6 +8,9 @@
     const blocks = BlocksInterface.getInstance();
     blocks?.addTags('hey');
     blocks?.gotoBlock('test');
+
+    let test = blocks?.getParamStore('test');
+    let num = blocks?.getParamStore('num');
 </script>
 
 <h1>Welcome to your library project</h1>
@@ -25,8 +28,8 @@
               secondaryActions={[BAction.ToggleProperty('Realm.Test_realm.variable.test_bool', false, true)]}
 />
 
-<BlocksButton label="local test toggle"
-              primaryAction={BAction.SetProperty('num', '11')}
+<BlocksButton label="local num 11"
+              primaryAction={BAction.SetProperty('num', 11)}
 />
 &nbsp;
 <BlocksButton label="realm test on"
@@ -34,4 +37,15 @@
 />
 <BlocksButton label="realm test off"
               primaryAction={BAction.SetProperty('Realm.Test_realm.variable.test_bool', false)}
+/>
+
+<div>{$test} {$num}</div>
+
+
+<BlocksButton label="Block A"
+              primaryAction={BAction.SetProperty('Spot.x_test_samB.block', 'Test/test_scroll_etc')}
+/>
+
+<BlocksButton label="Block B"
+              primaryAction={BAction.SetProperty('Spot.x_test_samB.block', 'Test/test_scroll_etc_5')}
 />
