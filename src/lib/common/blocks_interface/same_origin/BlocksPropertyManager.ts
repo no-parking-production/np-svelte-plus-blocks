@@ -7,7 +7,8 @@ import {GenericPropertyManager} from "$lib/common/blocks_interface/GenericProper
 import {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
 import {AsyncSignal} from "$lib/common/events/AsyncSignal.js";
-import {AbstractIntervalScanner} from "$lib/common/blocks_interface/AbstractIntervalScanner.js";
+import {AbstractIntervalScanner} from "$lib/common/blocks_interface/same_origin/AbstractIntervalScanner.js";
+import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 
 
 const BASE_PATH_LOCAL_PARAMETER = 'Local.parameter.';
@@ -68,7 +69,7 @@ export class BlocksPropertyManager extends AbstractIntervalScanner implements IP
     public hasProperty(path: string): boolean {
         return this.genericPropertyManager.hasParameter(path);
     }
-    public getValue(path: string): string {
+    public getValue(path: string): BlocksParamType {
         return this.genericPropertyManager.props[path].value;
     }
     /***
@@ -78,7 +79,7 @@ export class BlocksPropertyManager extends AbstractIntervalScanner implements IP
      */
     public getBoolValue(path: string): boolean {
         if (!this.genericPropertyManager.hasParameter(path)) return false;
-        return BlocksHelper.isTruthy(this.genericPropertyManager.props[path].value);
+        return BlocksHelper.isTruthy(String(this.genericPropertyManager.props[path].value));
     }
     public setValue(path: string, value: any) {
         if (this.genericPropertyManager.hasParameter(path)) {

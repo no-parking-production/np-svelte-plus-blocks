@@ -1,4 +1,4 @@
-import {AbstractIntervalScanner} from "$lib/common/blocks_interface/AbstractIntervalScanner.js";
+import {AbstractIntervalScanner} from "$lib/common/blocks_interface/same_origin/AbstractIntervalScanner.js";
 
 
 export class ScannerGroup extends AbstractIntervalScanner {

@@ -1,6 +1,6 @@
 
 import type {IBlocksAPI, IBlocksWindow} from "$lib/common/interfaces/BlocksApi.js";
-import type {IPlayerPubSub} from "$lib/common/interfaces/blocks/IPlayerPubSub.js";
+import type {IParamSubscriber, IPlayerPubSub} from "$lib/common/interfaces/blocks/IPlayerPubSub.js";
 import {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 import type {
     parameterHandler,
@@ -13,9 +13,10 @@ import {
     PubSubData, PubSubSubscribeMessage, SetMessage
 } from "$lib/common/interfaces/blocks/BlocksSocket.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
+import type {IBlocksPubSubManager} from "$lib/common/blocks_interface/interfaces/IBlocksPubSubManager.js";
 
 
-export class BlocksPubSubManager {
+export class BlocksPubSubManager implements IBlocksPubSubManager {
     private topWindow: IBlocksWindow;
     private pixiApi: IBlocksAPI;
     private pupSub: IPlayerPubSub;
@@ -43,7 +44,7 @@ export class BlocksPubSubManager {
     public subscribe(path: string): void {
         this.sendSubscribe(path);
     }
-    public setValue(path: string, value: BlocksParamType) {
+    public setValue(path: string, value: BlocksParamType): void {
         const type = this.genericPropertyManager.getParameterType(path);
         switch (type) {
             case BlocksValueType.Boolean:

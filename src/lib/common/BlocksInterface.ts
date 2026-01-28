@@ -3,12 +3,14 @@ import type {IBlocksParameter} from "$lib/common/interfaces/IBlocksParameter.js"
 import type {IBlocksParameterLite} from "$lib/common/interfaces/IBlocksParameterLite.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 import type {IBlocksWindow} from "$lib/common/interfaces/BlocksApi.js";
-import {BlocksPubSubManager} from "$lib/common/blocks_interface/BlocksPubSubManager.js";
-import {BlocksPropertyManager} from "$lib/common/blocks_interface/BlocksPropertyManager.js";
-import {BlocksTagManager} from "$lib/common/blocks_interface/BlocksTagManager.js";
-import {ScannerGroup} from "$lib/common/blocks_interface/ScannerGroup.js";
+import {BlocksPubSubManager} from "$lib/common/blocks_interface/same_origin/BlocksPubSubManager.js";
+import {BlocksPropertyManager} from "$lib/common/blocks_interface/same_origin/BlocksPropertyManager.js";
+import {BlocksTagManager} from "$lib/common/blocks_interface/same_origin/BlocksTagManager.js";
+import {ScannerGroup} from "$lib/common/blocks_interface/same_origin/ScannerGroup.js";
 import type {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
+import type {IBlocksPubSubManager} from "$lib/common/blocks_interface/interfaces/IBlocksPubSubManager.js";
+import {BlocksPubSubManagerOther} from "$lib/common/blocks_interface/other_origin/BlocksPubSubManagerOther.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
@@ -21,10 +23,12 @@ export class BlocksInterface {
     private static blocksWindow: IBlocksWindow | null = null;
     private static instance: BlocksInterface | null = null;
 
-    private pubSubManager: BlocksPubSubManager;
-    private readonly propManager: BlocksPropertyManager;
-    private readonly blocksTagManager: BlocksTagManager;
-    private scannerGroup: ScannerGroup;
+    private pubSubManager: IBlocksPubSubManager;
+    private readonly propManager: BlocksPropertyManager | undefined;
+    private readonly blocksTagManager: BlocksTagManager | undefined;
+    private scannerGroup: ScannerGroup | undefined;
+
+    private readonly isSameOrigin: boolean;
 
     public static getInstance(): BlocksInterface | null {
         if (typeof window === 'undefined') return null;
@@ -37,16 +41,39 @@ export class BlocksInterface {
         this.onUpdateParam = this.onUpdateParam.bind(this);
         this.onRegisterParam = this.onRegisterParam.bind(this);
         BlocksInterface.blocksWindow = window?.top as unknown as IBlocksWindow;
-        this.pubSubManager = new BlocksPubSubManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
-        this.propManager = new BlocksPropertyManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
-        this.blocksTagManager = new BlocksTagManager(
-            BlocksInterface.blocksWindow,
-            this.onUpdateTags,
-            this.onAddTags,
-            this.onRemoveTags
-        );
-        this.scannerGroup = new ScannerGroup(BlocksInterface.blocksWindow, [this.blocksTagManager, this.propManager]);
-        this.scannerGroup.startScanning();
+        let sameOrigin = true;
+
+        // Check if blocksWindow is served from same origin
+        if (window?.top && window.top !== window.self) {
+            try {
+                // Try to access top window's origin - will throw if cross-origin
+                const topOrigin = window.top.location.origin;
+                if (topOrigin !== window.location.origin) {
+                    console.warn('BlocksInterface: blocksWindow is from different origin');
+                    sameOrigin = false;
+                }
+            } catch (e) {
+                // Cross-origin access blocked by browser
+                console.warn('BlocksInterface: Cannot access blocksWindow origin (cross-origin)');
+                sameOrigin = false;
+            }
+        }
+        this.isSameOrigin = sameOrigin;
+
+        if (!sameOrigin) {
+            this.pubSubManager = new BlocksPubSubManagerOther(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
+        } else {
+            this.pubSubManager = new BlocksPubSubManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
+            this.propManager = new BlocksPropertyManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
+            this.blocksTagManager = new BlocksTagManager(
+                BlocksInterface.blocksWindow,
+                this.onUpdateTags,
+                this.onAddTags,
+                this.onRemoveTags
+            );
+            this.scannerGroup = new ScannerGroup(BlocksInterface.blocksWindow, [this.blocksTagManager, this.propManager]);
+            this.scannerGroup.startScanning();
+        }
     }
 
     /**
@@ -65,6 +92,7 @@ export class BlocksInterface {
 
         // Subscribe to server param if not already subscribed
         if (!isLocal) this.subscribeServerParam(path);
+        if (isLocal && !this.isSameOrigin) this.subscribeServerParam(path);
 
         // Create a new store with an initial value
         const initialValue = this.paramValues.get(path);
@@ -132,7 +160,12 @@ export class BlocksInterface {
     }
 
     private setLocalParam(name: string, value: BlocksParamType): void {
-        BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
+        if (this.isSameOrigin) {
+            BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
+        } else {
+            console.log('setLocalParam', name, value);
+            this.pubSubManager?.setValue(PREFIX_LOCAL_PARAM + name, value);
+        }
     }
     private subscribeServerParam(path: string): void {
         this.pubSubManager?.subscribe(path);
@@ -175,19 +208,19 @@ export class BlocksInterface {
         BlocksInterface.postBlocksMessage('set-location', location);
     }
     public setTags(tags: string): void {
-        this.blocksTagManager.setTags(tags);
+        this.blocksTagManager?.setTags(tags);
     }
     public setTagsOfSet(tagList: string, tagSet: string): void {
-        this.blocksTagManager.setTagsOfSet(tagList, tagSet);
+        this.blocksTagManager?.setTagsOfSet(tagList, tagSet);
     }
     public toggleTags(tags: string): void {
-        this.blocksTagManager.toggleTags(tags);
+        this.blocksTagManager?.toggleTags(tags);
     }
     public addTags(tags: string): void {
-        this.blocksTagManager.addTags(tags);
+        this.blocksTagManager?.addTags(tags);
     }
     public removeTags(tags: string): void {
-        this.blocksTagManager.removeTags(tags);
+        this.blocksTagManager?.removeTags(tags);
     }
 
 
@@ -201,7 +234,7 @@ export class BlocksInterface {
     }
 
     private onRegisterParam(parameter: IBlocksParameter): void {
-        console.log('registerParam', parameter);
+        // console.log('registerParam', parameter);
         this.onParamUpdate(parameter, parameter.type);
     }
 

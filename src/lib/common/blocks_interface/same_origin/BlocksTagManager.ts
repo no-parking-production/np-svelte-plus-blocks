@@ -1,6 +1,6 @@
 import type {IBlocksAPI, IBlocksWindow} from "$lib/common/interfaces/BlocksApi.js";
 import {EventSubscription} from "$lib/common/events/EventSubscription.js";
-import {AbstractIntervalScanner} from "$lib/common/blocks_interface/AbstractIntervalScanner.js";
+import {AbstractIntervalScanner} from "$lib/common/blocks_interface/same_origin/AbstractIntervalScanner.js";
 import type {ITagSet} from "$lib/common/interfaces/blocks/ITagSet.js";
 
 export type TagChangeHandler = (tags: string) => void;
