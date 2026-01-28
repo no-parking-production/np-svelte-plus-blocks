@@ -8,6 +8,7 @@ import {BlocksPropertyManager} from "$lib/common/blocks_interface/BlocksProperty
 import {BlocksTagManager} from "$lib/common/blocks_interface/BlocksTagManager.js";
 import {ScannerGroup} from "$lib/common/blocks_interface/ScannerGroup.js";
 import type {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
+import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
@@ -28,13 +29,8 @@ export class BlocksInterface {
     public static getInstance(): BlocksInterface | null {
         if (typeof window === 'undefined') return null;
         if (BlocksInterface.instance) return BlocksInterface.instance;
-        try {
-            BlocksInterface.instance = new BlocksInterface();
-            return BlocksInterface.instance;
-        } catch (e) {
-            console.error('Cannot access parent window connector', e);
-        }
-        return null;
+        BlocksInterface.instance = new BlocksInterface();
+        return BlocksInterface.instance;
     }
 
     private constructor() {
@@ -92,17 +88,29 @@ export class BlocksInterface {
         this.paramStores.set(path, store);
         return store;
     }
+    public getParamValueType(path: string): BlocksValueType | undefined {
+        path = BlocksInterface.fixPath(path);
+        return this.paramTypes.get(path);
+    }
+    public getParamValue(path: string): BlocksParamType | undefined {
+        path = BlocksInterface.fixPath(path);
+        return this.paramValues.get(path);
+    }
 
     /**
      * Called when a parameter value changes from the server
      * Updates the corresponding store
      */
     private onParamUpdate(paramLite: IBlocksParameterLite, type: BlocksValueType | null = null): void {
-        this.paramValues.set(paramLite.name, paramLite.value);
-        if (type) this.paramTypes.set(paramLite.name, type);
+        let value = paramLite.value;
+        if (type) {
+            this.paramTypes.set(paramLite.name, type);
+            value = BlocksHelper.fixValue(value, type);
+        }
+        this.paramValues.set(paramLite.name, value);
 
         const store = this.paramStores.get(paramLite.name);
-        store?.set(paramLite.value);
+        store?.set(value);
     }
 
     /**
@@ -193,6 +201,7 @@ export class BlocksInterface {
     }
 
     private onRegisterParam(parameter: IBlocksParameter): void {
+        console.log('registerParam', parameter);
         this.onParamUpdate(parameter, parameter.type);
     }
 

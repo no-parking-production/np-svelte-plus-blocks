@@ -15,7 +15,7 @@
 <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
 
 <BlocksButton label="local test on"
-              primaryAction={BAction.SetProperty('test', true)}
+              primaryAction={BAction.SetProperty('test', 'lala')}
 />
 <BlocksButton label="local test off"
               primaryAction={BAction.SetProperty('test', false)}
@@ -23,6 +23,10 @@
 <BlocksButton label="local test toggle"
               primaryAction={BAction.ToggleProperty('test', true, false)}
               secondaryActions={[BAction.ToggleProperty('Realm.Test_realm.variable.test_bool', false, true)]}
+/>
+
+<BlocksButton label="local test toggle"
+              primaryAction={BAction.SetProperty('num', '11')}
 />
 &nbsp;
 <BlocksButton label="realm test on"

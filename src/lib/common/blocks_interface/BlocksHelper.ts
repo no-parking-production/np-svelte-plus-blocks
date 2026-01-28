@@ -1,5 +1,5 @@
-import type {IBlocksAPI, IBlocksWindow} from "$lib/common/interfaces/BlocksApi.js";
 import type {BlocksParamType, Dictionary} from "$lib/common/interfaces/blocks/Shared.js";
+import {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
 
 export class BlocksHelper {
     // private static blocks: IBlocksWindow = window.top as IBlocksWindow;
@@ -64,6 +64,16 @@ export class BlocksHelper {
         if (stringValue === undefined || stringValue === null || stringValue === '' || stringValue === '0') return false;
         const lowerCase = stringValue.toLowerCase();
         return !(lowerCase === 'false' || lowerCase === 'no' || lowerCase === 'off');
+    }
+
+    public static fixValue(value: BlocksParamType, type: BlocksValueType | undefined): BlocksParamType {
+        switch (type) {
+            case BlocksValueType.Boolean:
+                return BlocksHelper.isTruthy(String(value));
+            case BlocksValueType.Number:
+                return parseFloat(String(value));
+        }
+        return value;
     }
 
 

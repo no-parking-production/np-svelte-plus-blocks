@@ -1,31 +1,27 @@
-import {ButtonAction} from "$lib/common/button/ButtonAction.js";
+import {ButtonActionWithParam} from "$lib/common/button/ButtonAction.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
-import {type Writable} from "svelte/store";
-import {BlocksInterface} from "$lib/common/BlocksInterface.js";
+import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
 
-export class BASetProperty extends ButtonAction {
+export class BASetProperty extends ButtonActionWithParam {
     declare '@type': 'setProperty';
-    public readonly propertyPath: string;
-    public readonly value: BlocksParamType;
-    private readonly property: Writable<BlocksParamType> | undefined;
-
+    private readonly value: BlocksParamType;
     constructor(
         propertyPath: string,
-        value: BlocksParamType
+        setValue: BlocksParamType
     ) {
-        super();
-        this.propertyPath = propertyPath;
-        this.value = value;
-        this.property = BlocksInterface.getInstance()?.getParamStore(propertyPath);
-        this.property?.subscribe((value) => {
-            console.log('BASetProperty', value);
-            this.setActive(value === this.value);
-        });
+        super(propertyPath);
+        this.value = BlocksHelper.fixValue(setValue, this.valueType);
+        this.setActive(this.value === this.currentValue);
     }
+
+
     onDown() {
         // nothing to do
     }
     onUp() {
         this.property?.set(this.value);
+    }
+    protected onValueChange(value: BlocksParamType): void {
+        this.setActive(value === this.value);
     }
 }
