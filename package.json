@@ -1,6 +1,6 @@
 {
 	"name": "@nopa/svelte-plus-blocks",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"description": "Experimental Interface between Svelte and Blocks",
 	"repository": {
 		"type": "git",

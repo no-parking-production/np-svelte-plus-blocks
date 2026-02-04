@@ -1,7 +1,7 @@
 <script>
 
     import {BlocksInterface} from "$lib/common/BlocksInterface.js";
-    import {BAction} from "$lib/common/button/BAction.ts";
+    import {BAction} from "$lib/common/button/BAction.js";
     import {BlocksButton} from "$lib";
 
 
@@ -49,6 +49,12 @@
 />
 <BlocksButton label="tag: 2,3 of 1-3"
               primaryAction={BAction.SetTags('two, three', 'one, two, three')}
+/>
+<BlocksButton label="tag: hey"
+              primaryAction={BAction.ToggleTags('hey')}
+/>
+<BlocksButton label="tag: you"
+              primaryAction={BAction.ToggleTags('you')}
 />
 <BlocksButton label="tag: h, y"
               primaryAction={BAction.ToggleTags('you, hey')}
