@@ -8,6 +8,12 @@ export class TagSet {
     public get str(): string {
         return Array.from(this._tags.values()).join(',');
     }
+    public get size(): number {
+        return this._tags.size;
+    }
+    public get values(): SetIterator<string> {
+        return this._tags.values();
+    }
 
     constructor(tags?: string[] | Set<string>) {
         if (tags === undefined) tags = new Set<string>();
