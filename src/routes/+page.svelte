@@ -41,6 +41,18 @@
 
 <div>{$test} {$num}</div>
 
+<BlocksButton label="tag: 1 of 1-3"
+              primaryAction={BAction.SetTags('one', 'one, two, three')}
+/>
+<BlocksButton label="tag: 2 of 1-3"
+              primaryAction={BAction.SetTags('two', 'one, two, three')}
+/>
+<BlocksButton label="tag: 2,3 of 1-3"
+              primaryAction={BAction.SetTags('two, three', 'one, two, three')}
+/>
+<BlocksButton label="tag: h, y"
+              primaryAction={BAction.ToggleTags('you, hey')}
+/>
 
 <BlocksButton label="Block A"
               primaryAction={BAction.SetProperty('Spot.x_test_samB.block', 'Test/test_scroll_etc')}
@@ -49,3 +61,5 @@
 <BlocksButton label="Block B"
               primaryAction={BAction.SetProperty('Spot.x_test_samB.block', 'Test/test_scroll_etc_5')}
 />
+
+

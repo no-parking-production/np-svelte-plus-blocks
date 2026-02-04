@@ -1,4 +1,4 @@
-import { writable, type Writable } from 'svelte/store';
+import {writable, type Writable} from 'svelte/store';
 import type {IBlocksParameter} from "$lib/common/interfaces/IBlocksParameter.js";
 import type {IBlocksParameterLite} from "$lib/common/interfaces/IBlocksParameterLite.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
@@ -11,40 +11,55 @@ import type {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParamete
 import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
 import type {IBlocksPubSubManager} from "$lib/common/blocks_interface/interfaces/IBlocksPubSubManager.js";
 import {BlocksPubSubManagerOther} from "$lib/common/blocks_interface/other_origin/BlocksPubSubManagerOther.js";
+import {TagSet} from "$lib/common/TagSet.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
 
+const TO_ARRAY = (value: string): string[] => value.split(',').map(s => s.trim());
+
 export class BlocksInterface {
-    private paramStores: Map<string, Writable<BlocksParamType>> = new Map();
-    private paramValues: Map<string, BlocksParamType> = new Map();
-    private paramTypes: Map<string, BlocksValueType> = new Map();
+    private _paramStores: Map<string, Writable<BlocksParamType>> = new Map();
+    private _paramValues: Map<string, BlocksParamType> = new Map();
+    private _paramTypes: Map<string, BlocksValueType> = new Map();
 
-    private static blocksWindow: IBlocksWindow | null = null;
-    private static instance: BlocksInterface | null = null;
+    public readonly tagSet: Writable<TagSet> = writable<TagSet>(new TagSet());
 
-    private pubSubManager: IBlocksPubSubManager;
-    private readonly propManager: BlocksPropertyManager | undefined;
-    private readonly blocksTagManager: BlocksTagManager | undefined;
-    private scannerGroup: ScannerGroup | undefined;
+    private static _blocksWindow: IBlocksWindow | null = null;
+    private static _instance: BlocksInterface | null = null;
 
-    private readonly isSameOrigin: boolean;
+    private readonly _pubSubManager: IBlocksPubSubManager | undefined;
+    private readonly _propManager: BlocksPropertyManager | undefined;
+    private readonly _blocksTagManager: BlocksTagManager | undefined;
+    private readonly _scannerGroup: ScannerGroup | undefined;
+
+    private readonly _isSameOrigin: boolean;
+    /**
+     * Indicates if the BlocksInterface is embedded within another window.
+     */
+    private readonly _isEmbedded: boolean;
 
     public static getInstance(): BlocksInterface | null {
         if (typeof window === 'undefined') return null;
-        if (BlocksInterface.instance) return BlocksInterface.instance;
-        BlocksInterface.instance = new BlocksInterface();
-        return BlocksInterface.instance;
+        if (BlocksInterface._instance) return BlocksInterface._instance;
+        BlocksInterface._instance = new BlocksInterface();
+        return BlocksInterface._instance;
     }
 
     private constructor() {
         this.onUpdateParam = this.onUpdateParam.bind(this);
         this.onRegisterParam = this.onRegisterParam.bind(this);
-        BlocksInterface.blocksWindow = window?.top as unknown as IBlocksWindow;
+
+        this.onAddTags = this.onAddTags.bind(this);
+        this.onRemoveTags = this.onRemoveTags.bind(this);
+
+        BlocksInterface._blocksWindow = window?.top as unknown as IBlocksWindow;
         let sameOrigin = true;
 
+        this._isEmbedded = window?.top !== window;
+
         // Check if blocksWindow is served from same origin
-        if (window?.top && window.top !== window.self) {
+        if (window?.top && this._isEmbedded) {
             try {
                 // Try to access top window's origin - will throw if cross-origin
                 const topOrigin = window.top.location.origin;
@@ -58,21 +73,27 @@ export class BlocksInterface {
                 sameOrigin = false;
             }
         }
-        this.isSameOrigin = sameOrigin;
+        this._isSameOrigin = sameOrigin;
+
+        if (!this._isEmbedded) {
+            // todo: connect to Blocks via UserScript for setting attribute values
+            console.log('not embedded - maybe use a user script to set attribute values?');
+            return;
+        }
 
         if (!sameOrigin) {
-            this.pubSubManager = new BlocksPubSubManagerOther(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
+            this._pubSubManager = new BlocksPubSubManagerOther(BlocksInterface._blocksWindow, this.onUpdateParam, this.onRegisterParam);
         } else {
-            this.pubSubManager = new BlocksPubSubManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
-            this.propManager = new BlocksPropertyManager(BlocksInterface.blocksWindow, this.onUpdateParam, this.onRegisterParam);
-            this.blocksTagManager = new BlocksTagManager(
-                BlocksInterface.blocksWindow,
+            this._pubSubManager = new BlocksPubSubManager(BlocksInterface._blocksWindow, this.onUpdateParam, this.onRegisterParam);
+            this._propManager = new BlocksPropertyManager(BlocksInterface._blocksWindow, this.onUpdateParam, this.onRegisterParam);
+            this._blocksTagManager = new BlocksTagManager(
+                BlocksInterface._blocksWindow,
                 this.onUpdateTags,
                 this.onAddTags,
                 this.onRemoveTags
             );
-            this.scannerGroup = new ScannerGroup(BlocksInterface.blocksWindow, [this.blocksTagManager, this.propManager]);
-            this.scannerGroup.startScanning();
+            this._scannerGroup = new ScannerGroup(BlocksInterface._blocksWindow, [this._blocksTagManager, this._propManager]);
+            this._scannerGroup.startScanning();
         }
     }
 
@@ -84,27 +105,27 @@ export class BlocksInterface {
     public getParamStore(path: string): Writable<BlocksParamType> {
         path = BlocksInterface.fixPath(path);
 
-        if (this.paramStores.has(path)) {
-            return this.paramStores.get(path) as Writable<BlocksParamType>;
+        if (this._paramStores.has(path)) {
+            return this._paramStores.get(path) as Writable<BlocksParamType>;
         }
 
         const isLocal = BlocksInterface.isLocalParam(path);
 
         // Subscribe to server param if not already subscribed
         if (!isLocal) this.subscribeServerParam(path);
-        if (isLocal && !this.isSameOrigin) this.subscribeServerParam(path);
+        if (isLocal && !this._isSameOrigin) this.subscribeServerParam(path);
 
         // Create a new store with an initial value
-        const initialValue = this.paramValues.get(path);
+        const initialValue = this._paramValues.get(path);
         const store = writable<BlocksParamType>(initialValue);
 
         // Subscribe to store changes and update server param
         store.subscribe((value: BlocksParamType | undefined) => {
-            const currentValue = this.paramValues.get(path);
+            const currentValue = this._paramValues.get(path);
 
             // Only update if value actually changed to avoid loops
             if (value !== currentValue && value !== undefined) {
-                this.paramValues.set(path, value);
+                this._paramValues.set(path, value);
                 if (isLocal) {
                     const localPath = path.substring(PREFIX_LOCAL_PARAM.length);
                     this.setLocalParam(localPath, value);
@@ -113,16 +134,16 @@ export class BlocksInterface {
             }
         });
 
-        this.paramStores.set(path, store);
+        this._paramStores.set(path, store);
         return store;
     }
     public getParamValueType(path: string): BlocksValueType | undefined {
         path = BlocksInterface.fixPath(path);
-        return this.paramTypes.get(path);
+        return this._paramTypes.get(path);
     }
     public getParamValue(path: string): BlocksParamType | undefined {
         path = BlocksInterface.fixPath(path);
-        return this.paramValues.get(path);
+        return this._paramValues.get(path);
     }
 
     /**
@@ -132,12 +153,12 @@ export class BlocksInterface {
     private onParamUpdate(paramLite: IBlocksParameterLite, type: BlocksValueType | null = null): void {
         let value = paramLite.value;
         if (type) {
-            this.paramTypes.set(paramLite.name, type);
+            this._paramTypes.set(paramLite.name, type);
             value = BlocksHelper.fixValue(value, type);
         }
-        this.paramValues.set(paramLite.name, value);
+        this._paramValues.set(paramLite.name, value);
 
-        const store = this.paramStores.get(paramLite.name);
+        const store = this._paramStores.get(paramLite.name);
         store?.set(value);
     }
 
@@ -145,32 +166,33 @@ export class BlocksInterface {
      * Remove a parameter store subscription
      */
     private unsubscribeParam(path: string): void {
-        this.paramStores.delete(path);
-        this.paramValues.delete(path);
-        this.paramTypes.delete(path);
+        this._paramStores.delete(path);
+        this._paramValues.delete(path);
+        this._paramTypes.delete(path);
     }
 
     /**
      * Clear all parameter stores
      */
     private clearAll(): void {
-        this.paramStores.clear();
-        this.paramValues.clear();
-        this.paramTypes.clear();
+        this._paramStores.clear();
+        this._paramValues.clear();
+        this._paramTypes.clear();
     }
 
     private setLocalParam(name: string, value: BlocksParamType): void {
-        if (this.isSameOrigin) {
-            BlocksInterface.blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
+        if (!this._isEmbedded) return;
+        if (this._isSameOrigin) {
+            BlocksInterface._blocksWindow?.pixiAPI.propProvider.setLocal(name, value);
         } else {
-            this.pubSubManager?.setValue(PREFIX_LOCAL_PARAM + name, value);
+            this._pubSubManager?.setValue(PREFIX_LOCAL_PARAM + name, value);
         }
     }
     private subscribeServerParam(path: string): void {
-        this.pubSubManager?.subscribe(path);
+        this._pubSubManager?.subscribe(path);
     }
     private setServerParam(path: string, value: BlocksParamType): void {
-        this.pubSubManager?.setValue(path, value);
+        this._pubSubManager?.setValue(path, value);
     }
 
 
@@ -207,26 +229,48 @@ export class BlocksInterface {
         BlocksInterface.postBlocksMessage('set-location', location);
     }
     public setTags(tags: string): void {
-        this.blocksTagManager?.setTags(tags);
+        this._blocksTagManager?.setTags(tags);
+        this.tagSet.update(() => {
+            return TagSet.fresh(tags);
+        });
     }
     public setTagsOfSet(tagList: string, tagSet: string): void {
-        this.blocksTagManager?.setTagsOfSet(tagList, tagSet);
+        this._blocksTagManager?.setTagsOfSet(tagList, tagSet);
+        this.tagSet.update((currentSet): TagSet => {
+            const wantedTags = TagSet.fresh(tagList);
+            const unwantedTags = (TagSet.fresh(tagSet)).difference(wantedTags);
+            return currentSet.difference(unwantedTags).union(wantedTags) as TagSet;
+        });
     }
     public toggleTags(tags: string): void {
-        this.blocksTagManager?.toggleTags(tags);
+        this._blocksTagManager?.toggleTags(tags);
+        this.tagSet.update((tagSet): TagSet => {
+            const incomingTags = TagSet.fresh(tags);
+            const contained = incomingTags.intersection(tagSet);
+            const missing = incomingTags.difference(tagSet);
+            return tagSet.difference(contained).union(missing) as TagSet;
+        });
     }
     public addTags(tags: string): void {
-        this.blocksTagManager?.addTags(tags);
+        this._blocksTagManager?.addTags(tags);
+        this.internalAddTags(tags);
     }
     public removeTags(tags: string): void {
-        this.blocksTagManager?.removeTags(tags);
+        this._blocksTagManager?.removeTags(tags);
+        this.internalRemoveTags(tags);
     }
 
 
     // blocks -> svelte
 
     private onAddTags(tags: string): void {
-        console.log('addTags', tags);
+        this.internalAddTags(tags);
+    }
+    private onRemoveTags(tags: string): void {
+        this.internalRemoveTags(tags);
+    }
+    private onUpdateTags(tags: string): void {
+        console.log('updateTags', tags);
     }
 
     private onShowLoaded(show: string): void {
@@ -237,9 +281,7 @@ export class BlocksInterface {
         this.onParamUpdate(parameter, parameter.type);
     }
 
-    private onRemoveTags(tags: string): void {
-        console.log('removeTags', tags);
-    }
+
 
     private onUpdateParam(parameter: IBlocksParameterLite): void {
         this.onParamUpdate(parameter);
@@ -251,18 +293,30 @@ export class BlocksInterface {
     private updateShow(show: string): void {
     }
 
-    private onUpdateTags(tags: string): void {
-        console.log('updateTags', tags);
+
+
+    // internal
+    private internalAddTags(tags: string): void {
+        this.tagSet.update((tagSet): TagSet => {
+            return tagSet.union(TagSet.fresh(tags)) as TagSet;
+        });
+    }
+    private internalRemoveTags(tags: string): void {
+        this.tagSet.update((tagSet): TagSet => {
+            return tagSet.difference(TagSet.fresh(tags)) as TagSet;
+        });
     }
 
-
     // misc tooling
+    private static toArray(value: string): string[] {
+        return value.split(',').map(s => s.trim());
+    }
     private static postBlocksMessage(type: string, data: string | null = null): void {
         if (data) BlocksInterface.postMessage({type: type, data: data});
         else BlocksInterface.postMessage({type: type});
     }
     private static postMessage(message: any): void {
-        BlocksInterface.blocksWindow?.postMessage(message, '*');
+        BlocksInterface._blocksWindow?.postMessage(message, '*');
     }
     private static regexRealmVariableWithoutPostfix = /^Realm\.[^.]+\.variable\.[^.]+$/;
     private static fixPath(path: string): string {

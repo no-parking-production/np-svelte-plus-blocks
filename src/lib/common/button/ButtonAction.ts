@@ -1,7 +1,8 @@
-import {writable, type Writable} from 'svelte/store';
+import {get, writable, type Writable} from 'svelte/store';
 import {BlocksInterface} from "$lib/common/BlocksInterface.js";
 import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 import type {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
+import {TagSet} from "$lib/common/TagSet.js";
 
 export abstract class ButtonAction {
     '@type': string;
@@ -41,6 +42,22 @@ export abstract class ButtonActionWithParam extends ButtonAction {
         this._currentValue = this.blocksInterface?.getParamValue(propertyPath);
     }
     protected abstract onValueChange(value: BlocksParamType): void;
+}
+export abstract class ButtonActionWithTags extends ButtonAction {
+    protected readonly tags: Writable<TagSet> | undefined;
+    private _currentValue: TagSet;
+    protected get currentValue(): TagSet { return this._currentValue; }
+    protected constructor() {
+        super();
+        this.tags = this.blocksInterface?.tagSet;
+        this.tags?.subscribe((value) => {
+            const copy = value.copy;
+            this._currentValue = copy;
+            this.onValueChange(copy);
+        });
+        this._currentValue = this.tags ? get(this.tags) : TagSet.EMPTY;
+    }
+    protected abstract onValueChange(value: TagSet): void;
 }
 
 
