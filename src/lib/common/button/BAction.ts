@@ -4,8 +4,12 @@ import {BASetProperty} from "$lib/common/button/BASetProperty.js";
 import {BAToggleProperty} from "$lib/common/button/BAToggleProperty.js";
 import {BAToggleTags} from "$lib/common/button/BAToggleTags.js";
 import {BASetTags} from "$lib/common/button/BASetTags.js";
+import {BAGoToLocalBlock} from "$lib/common/button/BAGoToLocalBlock.js";
 
 export class BAction {
+    public static GoToLocalBlock(blockTargetPath: string): ButtonAction {
+        return new BAGoToLocalBlock(blockTargetPath);
+    }
     public static SetProperty(propertyPath: string, value: BlocksParamType): ButtonAction {
         return new BASetProperty(propertyPath, value);
     }

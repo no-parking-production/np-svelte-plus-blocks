@@ -24,6 +24,7 @@ export class BlocksInterface {
     private _paramTypes: Map<string, BlocksValueType> = new Map();
 
     public readonly tagSet: Writable<TagSet> = writable<TagSet>(new TagSet());
+    public readonly localBlockPath: Writable<string> = writable<string>('');
 
     private static _blocksWindow: IBlocksWindow | null = null;
     private static _instance: BlocksInterface | null = null;
@@ -203,7 +204,8 @@ export class BlocksInterface {
      * "Keeps any enclosing Attractor Block in its active state."
      */
     public action(): void {
-        BlocksInterface.postBlocksMessage('action');
+        if (this._isEmbedded) BlocksInterface.postBlocksMessage('action');
+        else console.warn('action not supported for standalone mode');
     }
 
     /**
@@ -211,14 +213,22 @@ export class BlocksInterface {
      * @param path
      */
     public gotoBlock(path: string): void {
-        BlocksInterface.postBlocksMessage('goto-block', path);
+        if (this._isEmbedded) BlocksInterface.postBlocksMessage('goto-block', path);
+        else {
+            console.warn('gotoBlock not supported for standalone mode');
+        }
+        this.localBlockPath.set(path);
     }
 
     /**
      * "Navigate back, just like the browser's BACK button."
      */
     public goBack(): void {
-        BlocksInterface.postBlocksMessage('go-back');
+        if (this._isEmbedded) BlocksInterface.postBlocksMessage('go-back');
+        else {
+            window?.history.back();
+            console.warn('goBack not supported for standalone mode');
+        }
     }
 
     /**
@@ -226,7 +236,8 @@ export class BlocksInterface {
      * @param location will be interpreted as a Location ID if numeric, otherwise as Spot path
      */
     public setLocation(location: string): void {
-        BlocksInterface.postBlocksMessage('set-location', location);
+        if (this._isEmbedded) BlocksInterface.postBlocksMessage('set-location', location);
+        else console.warn('setLocation not supported for standalone mode');
     }
     public setTags(tags: string): void {
         this._blocksTagManager?.setTags(tags);

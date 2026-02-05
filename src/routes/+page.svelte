@@ -60,6 +60,13 @@
               primaryAction={BAction.ToggleTags('you, hey')}
 />
 
+<BlocksButton label="goto block 0"
+              primaryAction={BAction.GoToLocalBlock('/0/0')}
+/>
+<BlocksButton label="goto block 1"
+              primaryAction={BAction.GoToLocalBlock('/0/1')}
+/>
+
 <BlocksButton label="Block A"
               primaryAction={BAction.SetProperty('Spot.x_test_samB.block', 'Test/test_scroll_etc')}
 />
