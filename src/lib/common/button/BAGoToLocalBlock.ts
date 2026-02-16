@@ -5,8 +5,8 @@ export class BAGoToLocalBlock extends ButtonAction {
     private _currentValue: string | undefined;
     constructor(private readonly blockTargetPath: string) {
         super();
-        const blockPath = BlocksInterface.getInstance()?.localBlockPath;
-        blockPath?.subscribe((path: string)=> {
+        const onGotoBlock = BlocksInterface.getInstance()?.onGotoBlock;
+        onGotoBlock?.subscribe((path: string)=> {
             this._currentValue = path;
             super.setActive(path === blockTargetPath);
         });
