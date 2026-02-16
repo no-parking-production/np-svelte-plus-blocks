@@ -12,6 +12,7 @@ import {BlocksHelper} from "$lib/common/blocks_interface/BlocksHelper.js";
 import type {IBlocksPubSubManager} from "$lib/common/blocks_interface/interfaces/IBlocksPubSubManager.js";
 import {BlocksPubSubManagerOther} from "$lib/common/blocks_interface/other_origin/BlocksPubSubManagerOther.js";
 import {TagSet} from "$lib/common/TagSet.js";
+import {EventSubscription} from "$lib/common/events/EventSubscription.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
@@ -24,7 +25,7 @@ export class BlocksInterface {
     private _paramTypes: Map<string, BlocksValueType> = new Map();
 
     public readonly tagSet: Writable<TagSet> = writable<TagSet>(new TagSet());
-    public readonly localBlockPath: Writable<string> = writable<string>('');
+    public readonly onGotoBlock: EventSubscription<string> = new EventSubscription<string>();
 
     private static _blocksWindow: IBlocksWindow | null = null;
     private static _instance: BlocksInterface | null = null;
@@ -214,10 +215,8 @@ export class BlocksInterface {
      */
     public gotoBlock(path: string): void {
         if (this._isEmbedded) BlocksInterface.postBlocksMessage('goto-block', path);
-        else {
-            console.warn('gotoBlock not supported for standalone mode');
-        }
-        this.localBlockPath.set(path);
+        else console.warn('gotoBlock not supported for standalone mode');
+        this.onGotoBlock.emit(path);
     }
 
     /**
