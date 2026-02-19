@@ -1,13 +1,13 @@
 <script lang="ts">
     import type { ButtonProps} from "$lib/types.js";
 
-    let {
+    const {
         label,
         primaryAction,
         secondaryActions = []
     }: ButtonProps = $props();
 
-    let isActive = primaryAction.active;
+    let isActive = $derived(primaryAction.active);
 
     function onPointerDown() {
         primaryAction.onDown();

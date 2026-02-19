@@ -13,6 +13,7 @@ import type {IBlocksPubSubManager} from "$lib/common/blocks_interface/interfaces
 import {BlocksPubSubManagerOther} from "$lib/common/blocks_interface/other_origin/BlocksPubSubManagerOther.js";
 import {TagSet} from "$lib/common/TagSet.js";
 import {EventSubscription} from "$lib/common/events/EventSubscription.js";
+import {BlocksPubSubManagerNoWindow} from "$lib/common/blocks_interface/no_origin/BlocksPubSubManagerNoWindow.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
@@ -40,9 +41,13 @@ export class BlocksInterface {
      * Indicates if the BlocksInterface is embedded within another window.
      */
     private readonly _isEmbedded: boolean;
+    private readonly _isNotBrowser: boolean;
 
-    public static getInstance(): BlocksInterface | null {
-        if (typeof window === 'undefined') return null;
+    private readonly _warnOnceGoto = WarnOnce.create('gotoBlock not supported for standalone mode');
+    private readonly _warnOnceSetLocation = WarnOnce.create('setLocation not supported for standalone mode');
+    private readonly _warnOnceGoBack = WarnOnce.create('goBack not supported for standalone mode');
+
+    public static getInstance(): BlocksInterface {
         if (BlocksInterface._instance) return BlocksInterface._instance;
         BlocksInterface._instance = new BlocksInterface();
         return BlocksInterface._instance;
@@ -54,6 +59,15 @@ export class BlocksInterface {
 
         this.onAddTags = this.onAddTags.bind(this);
         this.onRemoveTags = this.onRemoveTags.bind(this);
+
+        this._isNotBrowser = typeof window === 'undefined';
+        if (this._isNotBrowser) {
+            console.warn('BlocksInterface: running outside of browser');
+            this._isEmbedded = false;
+            this._isSameOrigin = false;
+            this._pubSubManager = new BlocksPubSubManagerNoWindow(undefined, this.onUpdateParam, this.onRegisterParam);
+            return;
+        }
 
         BlocksInterface._blocksWindow = window?.top as unknown as IBlocksWindow;
         let sameOrigin = true;
@@ -215,7 +229,7 @@ export class BlocksInterface {
      */
     public gotoBlock(path: string): void {
         if (this._isEmbedded) BlocksInterface.postBlocksMessage('goto-block', path);
-        else console.warn('gotoBlock not supported for standalone mode');
+        else this._warnOnceGoto();
         this.onGotoBlock.emit(path);
     }
 
@@ -226,7 +240,7 @@ export class BlocksInterface {
         if (this._isEmbedded) BlocksInterface.postBlocksMessage('go-back');
         else {
             window?.history.back();
-            console.warn('goBack not supported for standalone mode');
+            this._warnOnceGoBack();
         }
     }
 
@@ -236,7 +250,7 @@ export class BlocksInterface {
      */
     public setLocation(location: string): void {
         if (this._isEmbedded) BlocksInterface.postBlocksMessage('set-location', location);
-        else console.warn('setLocation not supported for standalone mode');
+        else this._warnOnceSetLocation();
     }
     public setTags(tags: string): void {
         this._blocksTagManager?.setTags(tags);
@@ -340,5 +354,22 @@ export class BlocksInterface {
     }
     private static isLocalParam(path: string): boolean {
         return path.startsWith(PREFIX_LOCAL_PARAM);
+    }
+}
+
+class WarnOnce{
+    private warned = false;
+    constructor(private msg: string) {
+        this.warn.bind(this);
+    }
+    warn(): void {
+        if (!this.warned) {
+            console.warn('[Only warning once]: ' + this.msg);
+            this.warned = true;
+        }
+    }
+    public static create(msg: string): () => void {
+        const warnOnce = new WarnOnce(msg);
+        return warnOnce.warn.bind(warnOnce);
     }
 }
