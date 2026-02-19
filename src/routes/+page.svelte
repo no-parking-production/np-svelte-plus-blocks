@@ -2,7 +2,7 @@
 
     import {BlocksInterface} from "$lib/common/BlocksInterface.js";
     import {BAction} from "$lib/common/button/BAction.js";
-    import {BlocksButton} from "$lib";
+    import BlocksButton from "$lib/components/BlocksButton.svelte";
 
 
     const blocks = BlocksInterface.getInstance();
