@@ -14,6 +14,7 @@ import {BlocksPubSubManagerOther} from "$lib/common/blocks_interface/other_origi
 import {TagSet} from "$lib/common/TagSet.js";
 import {EventSubscription} from "$lib/common/events/EventSubscription.js";
 import {BlocksPubSubManagerNoWindow} from "$lib/common/blocks_interface/no_origin/BlocksPubSubManagerNoWindow.js";
+import {BlocksPubSubManagerBrowser} from "$lib/common/blocks_interface/no_origin/BlocksPubSubManagerBrowser.js";
 
 const PREFIX_LOCAL_PARAM = 'Local.parameter.';
 const POSTFIX_VALUE = '.value';
@@ -94,7 +95,7 @@ export class BlocksInterface {
         if (!this._isEmbedded) {
             // todo: connect to Blocks via UserScript for setting attribute values
             console.log('not embedded - maybe use a user script to set attribute values?');
-            this._pubSubManager = new BlocksPubSubManagerNoWindow(undefined, this.onUpdateParam, this.onRegisterParam);
+            this._pubSubManager = new BlocksPubSubManagerBrowser(this.onUpdateParam, this.onRegisterParam);
             return;
         }
 
