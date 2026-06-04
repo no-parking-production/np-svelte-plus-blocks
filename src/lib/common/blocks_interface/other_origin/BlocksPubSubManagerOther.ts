@@ -4,8 +4,14 @@ import {
     GenericPropertyManager, type parameterHandler,
     type parameterHandlerLite
 } from "$lib/common/blocks_interface/GenericPropertyManager.js";
-import type {BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
+import type {BlocksParamPath, BlocksParamType} from "$lib/common/interfaces/blocks/Shared.js";
 import {BlocksValueType} from "$lib/common/interfaces/blocks/ITypedParameter.js";
+import {
+    type IPubSubData,
+    PubSubData, PubSubMessageType,
+    PubSubSet,
+    PubSubSubscribe
+} from "$lib/common/blocks_interface/interfaces/PubSubTypes.js";
 
 export class BlocksPubSubManagerOther implements IBlocksPubSubManager {
     private topWindow: IBlocksWindow;
@@ -51,33 +57,23 @@ export class BlocksPubSubManagerOther implements IBlocksPubSubManager {
     }
     private onMessage(messageEvent: MessageEvent): void {
         if (!this.enabled) return;
-        if (messageEvent.data.type === "pubsub-data") {
+        if (messageEvent.data.type === PubSubMessageType.Data) {
             this.messageReceived(messageEvent.data as IPubSubData);
         }
     }
     private messageReceived(data: IPubSubData) {
         this.genericPropertyManager.dataReceived(data.value, data.path);
     }
-    private sendSubscribe(path: string): void {
-        this.topWindow.postMessage({type: 'pubsub-subscribe', path: path}, '*');
+    private sendSubscribe(path: BlocksParamPath): void {
+        this.topWindow.postMessage(new PubSubSubscribe(path), '*');
     }
     private sendChange(change: IPubSubData): void {
-        this.topWindow.postMessage({
-            type: 'pubsub-set',
-            path: change.path,
-            value: change.value
-        }, '*');
+        this.topWindow.postMessage(
+            new PubSubSet(change.path, change.value),
+             '*');
     }
 
 
 }
-interface IPubSubData {
-    type: 'pubsub-data',
-    path: string,
-    value: any
-}
-class PubSubData implements IPubSubData {
-    public readonly type = 'pubsub-data';
-    constructor(public path: string, public value: any) {
-    }
-}
+
+

@@ -94,6 +94,7 @@ export class BlocksInterface {
         if (!this._isEmbedded) {
             // todo: connect to Blocks via UserScript for setting attribute values
             console.log('not embedded - maybe use a user script to set attribute values?');
+            this._pubSubManager = new BlocksPubSubManagerNoWindow(undefined, this.onUpdateParam, this.onRegisterParam);
             return;
         }
 
